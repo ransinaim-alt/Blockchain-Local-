@@ -1,0 +1,103 @@
+import hashlib
+import json
+import time
+from flask import Flask, request, redirect, render_template_string
+
+app = Flask(__name__)
+
+# ================= BLOCKCHAIN =================
+
+class Blockchain:
+    def __init__(self):
+        self.chain = []
+        self.create_block("Genesis Block")
+
+    def create_block(self, data):
+        previous_hash = self.chain[-1]["hash"] if self.chain else "0"
+        block = {
+            "index": len(self.chain) + 1,
+            "timestamp": time.strftime("%Y-%m-%d %H:%M:%S"),
+            "data": data,
+            "previous_hash": previous_hash
+        }
+        block["hash"] = self.hash_block(block)
+        self.chain.append(block)
+
+    def hash_block(self, block):
+        block_string = json.dumps(block, sort_keys=True).encode()
+        return hashlib.sha256(block_string).hexdigest()
+
+blockchain = Blockchain()
+
+# ================= HTML =================
+
+HTML = """
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Web Blockchain</title>
+    <style>
+        body {
+            font-family: Arial;
+            background: #0f172a;
+            color: #e5e7eb;
+            padding: 20px;
+        }
+        h1 { color: #38bdf8; }
+        .block {
+            background: #020617;
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 8px;
+        }
+        input, button {
+            padding: 10px;
+            border-radius: 6px;
+            border: none;
+            width: 100%;
+            margin-top: 5px;
+        }
+        button {
+            background: #38bdf8;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+
+<h1>Blockchain Local RANSI</h1>
+
+<form method="POST">
+    <input type="text" name="data" placeholder="Tulis catatan baru..." required>
+    <button type="submit">Tambah Blok</button>
+</form>
+
+<hr>
+
+{% for block in chain %}
+<div class="block">
+    <b>Block {{ block.index }}</b><br>
+    🕒 {{ block.timestamp }}<br>
+    📝 {{ block.data }}<br>
+    🔗 Prev: {{ block.previous_hash }}<br>
+    🔐 Hash: {{ block.hash }}
+</div>
+{% endfor %}
+
+</body>
+</html>
+"""
+
+# ================= ROUTE =================
+
+@app.route("/", methods=["GET", "POST"])
+def index():
+    if request.method == "POST":
+        data = request.form["data"]
+        blockchain.create_block(data)
+        return redirect("/")
+    return render_template_string(HTML, chain=blockchain.chain)
+
+# ================= RUN =================
+
+app.run(host="0.0.0.0", port=5000)
